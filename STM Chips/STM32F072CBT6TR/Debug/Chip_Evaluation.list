@@ -270,7 +270,7 @@ int main(void)
   MX_TIM2_Init();
  8000240:	f000 f924 	bl	800048c <MX_TIM2_Init>
   /* USER CODE BEGIN 2 */
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1); // With this line, the while loop will be empty
  8000244:	4b08      	ldr	r3, [pc, #32]	@ (8000268 <main+0x48>)
  8000246:	2100      	movs	r1, #0
  8000248:	0018      	movs	r0, r3
