@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <string.h>
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,7 +46,9 @@ I2C_HandleTypeDef hi2c1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+// Example for temperature sensor
+static const uint8_t TMP102_ADDR = 0x48 << 1; // target device address - 8 bit address, with final bit reserved for the read/write bit
+static const uint8_t REG_TEMP = 0x00; // register address of temperature
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -68,9 +71,11 @@ static void MX_I2C1_Init(void);
   */
 int main(void)
 {
-
+  HAL_StatusTypeDef return_value; // gives various return values such as communication functions, we want to handle errors properly so save this in the return value
   /* USER CODE BEGIN 1 */
   uint8_t buf[12];
+  int16_t val; // raw data from sensor
+  float temp_c; // translate to a decimal value
 
   /* USER CODE END 1 */
 
@@ -103,9 +108,41 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+	// Tell
+    // Set first byte of the buffer to the location of TMP102's temperature register
+	buf[0] = REG_TEMP;
+	return_value = HAL_I2C_Master_Transmit(&hi2c1, TMP102_ADDR, buf, 1, HAL_MAX_DELAY); // 1 byte of data is sent
+	if (return_value != HAL_OK) {
+		strcpy((char*)buf, "Error Tx\r\n"); // transmit error, replacing the garbage data with error message
+	} else {
+		// read 2 bytes from temperature register
+		return_value = HAL_I2C_Master_Receive(&hi2c1, TMP102_ADDR, buf, 2, HAL_MAX_DELAY);
+		if (return_value != HAL_OK) {
+			strcpy((char*)buf, "Error Rx\r\n"); // receive error
+		} else {
+			// combine the bytes
+			val = ((int16_t)buf[0] << 4) | (buf[1] >> 4);
 
+			// convert to 2's complement, temperature can be negative
+			if (val > 0x7FF) {
+				val |= 0xF000;
+			}
+
+			// convert to float temperature value
+			temp_c = val * 0.0625;
+
+			// convert temperature to decimal format
+			temp_c *= 100;
+			snprintf((char*)buf, 100,
+					"%u.%02u C\r\n",
+					((unsigned int) temp_c / 100),
+					((unsigned int) temp_c % 100));
+		}
+	}
 	// Printing Hello! on UART --- see in the Putty COM port
-	strcpy((char*)buf, "Hello!\r\n");
+	//strcpy((char*)buf, "Hello!\r\n");
+
+	// Send out buffer to UART (temperature or error message)
 	HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
 	HAL_Delay(500);
 
